@@ -1,6 +1,10 @@
 # Сгенерированные файлы паролей
 *.txt
 
+# Файлы данных
+tasks.json
+*.json
+
 # Python
 __pycache__/
 *.py[cod]
