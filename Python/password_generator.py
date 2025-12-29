@@ -7,6 +7,7 @@ import random
 import string
 import argparse
 import sys
+from datetime import datetime
 
 
 class PasswordGenerator:
@@ -142,6 +143,34 @@ def pluralize_password(count):
         return "паролей"
 
 
+def save_to_file(passwords, filename, length, count):
+    """
+    Сохраняет пароли в файл
+
+    Args:
+        passwords (list): Список паролей для сохранения
+        filename (str): Имя файла для сохранения
+        length (int): Длина паролей
+        count (int): Количество паролей
+    """
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(f"Генератор паролей\n")
+            f.write(f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"{'='*50}\n\n")
+
+            if count == 1:
+                f.write(f"{passwords[0]}\n")
+            else:
+                f.write(f"Сгенерировано {count} {pluralize_password(count)} (длина: {length})\n\n")
+                for i, pwd in enumerate(passwords, 1):
+                    f.write(f"{i:2d}. {pwd}\n")
+
+        print(f"Пароли сохранены в файл: {filename}")
+    except IOError as e:
+        print(f"Ошибка при сохранении в файл: {e}", file=sys.stderr)
+
+
 def main():
     """Главная функция CLI"""
     parser = CustomArgumentParser(
@@ -157,6 +186,7 @@ def main():
   %(prog)s -l 16 --exclude-ambiguous # Пароль без похожих символов
   %(prog)s -s -l 10                  # Простой пароль
   %(prog)s --complex                 # Максимально сложный пароль
+  %(prog)s -l 16 -c 3 -o passwords.txt # Сохранить 3 пароля в файл
         """
     )
 
@@ -186,6 +216,9 @@ def main():
 
     parser.add_argument('--complex', action='store_true',
                         help='Сложный режим (все типы символов, длина 20)')
+
+    parser.add_argument('-o', '--output', type=str, metavar='FILE',
+                        help='Сохранить пароли в файл')
 
     args = parser.parse_args()
 
@@ -230,6 +263,10 @@ def main():
             for i, pwd in enumerate(passwords, 1):
                 print(f"{i:2d}. {pwd}")
             print()
+
+        # Сохраняем в файл если указан флаг -o
+        if args.output:
+            save_to_file(passwords, args.output, args.length, args.count)
 
     except ValueError as e:
         print(f"Ошибка: {e}", file=sys.stderr)

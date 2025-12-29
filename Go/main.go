@@ -141,6 +141,33 @@ func pluralizePassword(count int) string {
 	}
 }
 
+// saveToFile сохраняет пароли в файл
+func saveToFile(passwords []string, filename string, length, count int) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("ошибка при создании файла: %v", err)
+	}
+	defer file.Close()
+
+	// Записываем заголовок
+	fmt.Fprintln(file, "Генератор паролей")
+	fmt.Fprintf(file, "Дата: %s\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Fprintln(file, "==================================================")
+	fmt.Fprintln(file)
+
+	// Записываем пароли
+	if count == 1 {
+		fmt.Fprintln(file, passwords[0])
+	} else {
+		fmt.Fprintf(file, "Сгенерировано %d %s (длина: %d)\n\n", count, pluralizePassword(count), length)
+		for i, pwd := range passwords {
+			fmt.Fprintf(file, "%2d. %s\n", i+1, pwd)
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	// Определяем флаги командной строки (порядок как в Python версии)
 	help := flag.Bool("h", false, "")
@@ -152,6 +179,7 @@ func main() {
 	excludeAmbiguous := flag.Bool("exclude-ambiguous", false, "")
 	simple := flag.Bool("s", false, "")
 	complex := flag.Bool("complex", false, "")
+	output := flag.String("o", "", "")
 
 	// Сохраняем оригинальный output для восстановления
 	originalOutput := flag.CommandLine.Output()
@@ -174,6 +202,7 @@ func main() {
 		fmt.Fprintf(originalOutput, "  -exclude-ambiguous      Исключить похожие символы (0, O, l, 1, I)\n")
 		fmt.Fprintf(originalOutput, "  -s                      Простой режим (только буквы и цифры)\n")
 		fmt.Fprintf(originalOutput, "  -complex                Сложный режим (все типы символов, длина 20)\n")
+		fmt.Fprintf(originalOutput, "  -o                      Сохранить пароли в файл\n")
 
 		fmt.Fprintf(originalOutput, "\nПримеры:\n")
 		fmt.Fprintf(originalOutput, "  %s -l 16                    # Генерация пароля длиной 16 символов\n", progName)
@@ -182,6 +211,7 @@ func main() {
 		fmt.Fprintf(originalOutput, "  %s -l 16 -exclude-ambiguous # Пароль без похожих символов\n", progName)
 		fmt.Fprintf(originalOutput, "  %s -s -l 10                 # Простой пароль\n", progName)
 		fmt.Fprintf(originalOutput, "  %s -complex                 # Максимально сложный пароль\n", progName)
+		fmt.Fprintf(originalOutput, "  %s -l 16 -c 3 -o passwords.txt # Сохранить 3 пароля в файл\n", progName)
 	}
 
 	flag.Usage = func() {
@@ -241,5 +271,14 @@ func main() {
 			fmt.Printf("%2d. %s\n", i+1, pwd)
 		}
 		fmt.Println()
+	}
+
+	// Сохраняем в файл если указан флаг -o
+	if *output != "" {
+		if err := saveToFile(passwords, *output, opts.Length, *count); err != nil {
+			fmt.Fprintf(os.Stderr, "Ошибка при сохранении в файл: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Пароли сохранены в файл: %s\n", *output)
 	}
 }
