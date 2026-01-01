@@ -141,6 +141,109 @@ func pluralizePassword(count int) string {
 	}
 }
 
+// PasswordStrength структура для информации о силе пароля
+type PasswordStrength struct {
+	Score   int
+	Level   string
+	Details string
+}
+
+// checkPasswordStrength проверяет силу пароля
+func checkPasswordStrength(password string) PasswordStrength {
+	score := 0
+
+	// Длина пароля
+	length := len(password)
+	if length >= 16 {
+		score += 3
+	} else if length >= 12 {
+		score += 2
+	} else if length >= 8 {
+		score += 1
+	}
+
+	// Наличие разных типов символов
+	hasLower := false
+	hasUpper := false
+	hasDigit := false
+	hasSpecial := false
+
+	for _, c := range password {
+		if c >= 'a' && c <= 'z' {
+			hasLower = true
+		} else if c >= 'A' && c <= 'Z' {
+			hasUpper = true
+		} else if c >= '0' && c <= '9' {
+			hasDigit = true
+		} else if strings.ContainsRune("!@#$%^&*()_+-=[]{}|;:,.<>?", c) {
+			hasSpecial = true
+		}
+	}
+
+	charTypes := 0
+	if hasLower {
+		charTypes++
+	}
+	if hasUpper {
+		charTypes++
+	}
+	if hasDigit {
+		charTypes++
+	}
+	if hasSpecial {
+		charTypes++
+	}
+	score += charTypes
+
+	// Разнообразие символов (уникальность)
+	uniqueChars := make(map[rune]bool)
+	for _, c := range password {
+		uniqueChars[c] = true
+	}
+	uniquenessRatio := float64(len(uniqueChars)) / float64(length)
+	if uniquenessRatio > 0.8 {
+		score += 2
+	} else if uniquenessRatio > 0.6 {
+		score += 1
+	}
+
+	// Определение уровня
+	var level string
+	if score >= 9 {
+		level = "Очень сильный"
+	} else if score >= 7 {
+		level = "Сильный"
+	} else if score >= 5 {
+		level = "Средний"
+	} else {
+		level = "Слабый"
+	}
+
+	// Формируем описание
+	var types []string
+	if hasLower {
+		types = append(types, "строчные")
+	}
+	if hasUpper {
+		types = append(types, "заглавные")
+	}
+	if hasDigit {
+		types = append(types, "цифры")
+	}
+	if hasSpecial {
+		types = append(types, "спецсимволы")
+	}
+
+	details := fmt.Sprintf("Длина: %d | Разнообразие: %d/%d | Типы: %s",
+		length, len(uniqueChars), length, strings.Join(types, ", "))
+
+	return PasswordStrength{
+		Score:   score,
+		Level:   level,
+		Details: details,
+	}
+}
+
 // saveToFile сохраняет пароли в файл
 func saveToFile(passwords []string, filename string, length, count int) error {
 	file, err := os.Create(filename)
@@ -180,6 +283,7 @@ func main() {
 	simple := flag.Bool("s", false, "")
 	complex := flag.Bool("complex", false, "")
 	output := flag.String("o", "", "")
+	showStrength := flag.Bool("show-strength", false, "")
 
 	// Сохраняем оригинальный output для восстановления
 	originalOutput := flag.CommandLine.Output()
@@ -203,6 +307,7 @@ func main() {
 		fmt.Fprintf(originalOutput, "  -s                      Простой режим (только буквы и цифры)\n")
 		fmt.Fprintf(originalOutput, "  -complex                Сложный режим (все типы символов, длина 20)\n")
 		fmt.Fprintf(originalOutput, "  -o                      Сохранить пароли в файл\n")
+		fmt.Fprintf(originalOutput, "  -show-strength          Показать оценку силы пароля\n")
 
 		fmt.Fprintf(originalOutput, "\nПримеры:\n")
 		fmt.Fprintf(originalOutput, "  %s -l 16                    # Генерация пароля длиной 16 символов\n", progName)
@@ -261,6 +366,11 @@ func main() {
 	// Выводим результат
 	if *count == 1 {
 		fmt.Println(passwords[0])
+		if *showStrength {
+			strength := checkPasswordStrength(passwords[0])
+			fmt.Printf("\nСила пароля: %s\n", strength.Level)
+			fmt.Printf("Детали: %s\n", strength.Details)
+		}
 	} else {
 		fmt.Println()
 		fmt.Println("==================================================")
@@ -268,7 +378,12 @@ func main() {
 		fmt.Println("==================================================")
 		fmt.Println()
 		for i, pwd := range passwords {
-			fmt.Printf("%2d. %s\n", i+1, pwd)
+			if *showStrength {
+				strength := checkPasswordStrength(pwd)
+				fmt.Printf("%2d. %s  %s\n", i+1, pwd, strength.Level)
+			} else {
+				fmt.Printf("%2d. %s\n", i+1, pwd)
+			}
 		}
 		fmt.Println()
 	}

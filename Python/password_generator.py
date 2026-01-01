@@ -143,6 +143,75 @@ def pluralize_password(count):
         return "паролей"
 
 
+def check_password_strength(password):
+    """
+    Проверяет силу пароля
+
+    Args:
+        password (str): Пароль для проверки
+
+    Returns:
+        tuple: (баллы, уровень, описание)
+    """
+    score = 0
+    feedback = []
+
+    # Длина пароля
+    length = len(password)
+    if length >= 16:
+        score += 3
+    elif length >= 12:
+        score += 2
+    elif length >= 8:
+        score += 1
+
+    # Наличие разных типов символов
+    has_lower = any(c.islower() for c in password)
+    has_upper = any(c.isupper() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
+
+    char_types = sum([has_lower, has_upper, has_digit, has_special])
+    score += char_types
+
+    # Разнообразие символов (уникальность)
+    unique_chars = len(set(password))
+    uniqueness_ratio = unique_chars / length if length > 0 else 0
+    if uniqueness_ratio > 0.8:
+        score += 2
+    elif uniqueness_ratio > 0.6:
+        score += 1
+
+    # Определение уровня
+    if score >= 9:
+        level = "Очень сильный"
+    elif score >= 7:
+        level = "Сильный"
+    elif score >= 5:
+        level = "Средний"
+    else:
+        level = "Слабый"
+
+    # Формируем описание
+    details = []
+    details.append(f"Длина: {length}")
+    details.append(f"Разнообразие: {unique_chars}/{length}")
+
+    types = []
+    if has_lower:
+        types.append("строчные")
+    if has_upper:
+        types.append("заглавные")
+    if has_digit:
+        types.append("цифры")
+    if has_special:
+        types.append("спецсимволы")
+
+    details.append(f"Типы: {', '.join(types)}")
+
+    return score, level, " | ".join(details)
+
+
 def save_to_file(passwords, filename, length, count):
     """
     Сохраняет пароли в файл
@@ -220,6 +289,9 @@ def main():
     parser.add_argument('-o', '--output', type=str, metavar='FILE',
                         help='Сохранить пароли в файл')
 
+    parser.add_argument('--show-strength', action='store_true',
+                        help='Показать оценку силы пароля')
+
     args = parser.parse_args()
 
     try:
@@ -256,12 +328,20 @@ def main():
         # Выводим результат
         if args.count == 1:
             print(passwords[0])
+            if args.show_strength:
+                score, level, details = check_password_strength(passwords[0])
+                print(f"\nСила пароля: {level}")
+                print(f"Детали: {details}")
         else:
             print(f"\n{'='*50}")
             print(f"  Сгенерировано {args.count} {pluralize_password(args.count)} (длина: {args.length})")
             print(f"{'='*50}\n")
             for i, pwd in enumerate(passwords, 1):
-                print(f"{i:2d}. {pwd}")
+                if args.show_strength:
+                    score, level, details = check_password_strength(pwd)
+                    print(f"{i:2d}. {pwd}  {level}")
+                else:
+                    print(f"{i:2d}. {pwd}")
             print()
 
         # Сохраняем в файл если указан флаг -o
