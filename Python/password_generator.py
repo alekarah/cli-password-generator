@@ -20,7 +20,7 @@ class PasswordGenerator:
         self.special = "!@#$%^&*()_+-=[]{}|;:,.<>?"
 
     def generate(self, length=12, use_uppercase=True, use_digits=True,
-                 use_special=True, exclude_ambiguous=False):
+                 use_special=True, exclude_ambiguous=False, custom_chars=None):
         """
         Генерирует случайный пароль с заданными параметрами
 
@@ -30,6 +30,7 @@ class PasswordGenerator:
             use_digits (bool): Использовать цифры
             use_special (bool): Использовать специальные символы
             exclude_ambiguous (bool): Исключить похожие символы (0, O, l, 1, I)
+            custom_chars (str): Кастомный набор символов (игнорирует другие опции)
 
         Returns:
             str: Сгенерированный пароль
@@ -37,26 +38,33 @@ class PasswordGenerator:
         if length < 4:
             raise ValueError("Длина пароля должна быть не менее 4 символов")
 
-        # Формируем набор символов
-        charset = self.lowercase
-        required_chars = [random.choice(self.lowercase)]
+        # Если указан кастомный набор символов
+        if custom_chars:
+            if len(custom_chars) < 2:
+                raise ValueError("Кастомный набор должен содержать минимум 2 символа")
+            charset = custom_chars
+            required_chars = [random.choice(charset)]
+        else:
+            # Формируем набор символов
+            charset = self.lowercase
+            required_chars = [random.choice(self.lowercase)]
 
-        if use_uppercase:
-            charset += self.uppercase
-            required_chars.append(random.choice(self.uppercase))
+            if use_uppercase:
+                charset += self.uppercase
+                required_chars.append(random.choice(self.uppercase))
 
-        if use_digits:
-            charset += self.digits
-            required_chars.append(random.choice(self.digits))
+            if use_digits:
+                charset += self.digits
+                required_chars.append(random.choice(self.digits))
 
-        if use_special:
-            charset += self.special
-            required_chars.append(random.choice(self.special))
+            if use_special:
+                charset += self.special
+                required_chars.append(random.choice(self.special))
 
-        # Исключаем похожие символы если нужно
-        if exclude_ambiguous:
-            ambiguous = "0Ol1I"
-            charset = ''.join(c for c in charset if c not in ambiguous)
+            # Исключаем похожие символы если нужно
+            if exclude_ambiguous:
+                ambiguous = "0Ol1I"
+                charset = ''.join(c for c in charset if c not in ambiguous)
 
         if not charset:
             raise ValueError("Должен быть выбран хотя бы один тип символов")
@@ -256,6 +264,7 @@ def main():
   %(prog)s -s -l 10                  # Простой пароль
   %(prog)s --complex                 # Максимально сложный пароль
   %(prog)s -l 16 -c 3 -o passwords.txt # Сохранить 3 пароля в файл
+  %(prog)s -l 10 --custom-chars "abc123!@#" # Пароль из заданных символов
         """
     )
 
@@ -292,6 +301,9 @@ def main():
     parser.add_argument('--show-strength', action='store_true',
                         help='Показать оценку силы пароля')
 
+    parser.add_argument('--custom-chars', type=str, metavar='CHARS',
+                        help='Кастомный набор символов для пароля (например: "abc123!@#")')
+
     args = parser.parse_args()
 
     try:
@@ -322,7 +334,8 @@ def main():
             use_uppercase=use_uppercase,
             use_digits=use_digits,
             use_special=use_special,
-            exclude_ambiguous=exclude_ambiguous
+            exclude_ambiguous=exclude_ambiguous,
+            custom_chars=args.custom_chars
         )
 
         # Выводим результат

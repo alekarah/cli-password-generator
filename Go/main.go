@@ -36,6 +36,7 @@ type GenerateOptions struct {
 	UseDigits         bool
 	UseSpecial        bool
 	ExcludeAmbiguous  bool
+	CustomChars       string
 }
 
 // Generate генерирует пароль с заданными параметрами
@@ -44,32 +45,42 @@ func (pg *PasswordGenerator) Generate(opts GenerateOptions) (string, error) {
 		return "", fmt.Errorf("длина пароля должна быть не менее 4 символов")
 	}
 
-	// Формируем набор символов
-	charset := lowercase
+	var charset string
 	var requiredChars []rune
 
-	// Добавляем обязательный символ нижнего регистра
-	requiredChars = append(requiredChars, rune(lowercase[pg.rng.Intn(len(lowercase))]))
+	// Если указан кастомный набор символов
+	if opts.CustomChars != "" {
+		if len(opts.CustomChars) < 2 {
+			return "", fmt.Errorf("кастомный набор должен содержать минимум 2 символа")
+		}
+		charset = opts.CustomChars
+		requiredChars = append(requiredChars, rune(charset[pg.rng.Intn(len(charset))]))
+	} else {
+		// Формируем набор символов
+		charset = lowercase
+		// Добавляем обязательный символ нижнего регистра
+		requiredChars = append(requiredChars, rune(lowercase[pg.rng.Intn(len(lowercase))]))
 
-	if opts.UseUppercase {
-		charset += uppercase
-		requiredChars = append(requiredChars, rune(uppercase[pg.rng.Intn(len(uppercase))]))
-	}
+		if opts.UseUppercase {
+			charset += uppercase
+			requiredChars = append(requiredChars, rune(uppercase[pg.rng.Intn(len(uppercase))]))
+		}
 
-	if opts.UseDigits {
-		charset += digits
-		requiredChars = append(requiredChars, rune(digits[pg.rng.Intn(len(digits))]))
-	}
+		if opts.UseDigits {
+			charset += digits
+			requiredChars = append(requiredChars, rune(digits[pg.rng.Intn(len(digits))]))
+		}
 
-	if opts.UseSpecial {
-		charset += special
-		requiredChars = append(requiredChars, rune(special[pg.rng.Intn(len(special))]))
-	}
+		if opts.UseSpecial {
+			charset += special
+			requiredChars = append(requiredChars, rune(special[pg.rng.Intn(len(special))]))
+		}
 
-	// Исключаем похожие символы если нужно
-	if opts.ExcludeAmbiguous {
-		ambiguous := "0Ol1I"
-		charset = removeChars(charset, ambiguous)
+		// Исключаем похожие символы если нужно
+		if opts.ExcludeAmbiguous {
+			ambiguous := "0Ol1I"
+			charset = removeChars(charset, ambiguous)
+		}
 	}
 
 	if len(charset) == 0 {
@@ -284,6 +295,7 @@ func main() {
 	complex := flag.Bool("complex", false, "")
 	output := flag.String("o", "", "")
 	showStrength := flag.Bool("show-strength", false, "")
+	customChars := flag.String("custom-chars", "", "")
 
 	// Сохраняем оригинальный output для восстановления
 	originalOutput := flag.CommandLine.Output()
@@ -308,6 +320,7 @@ func main() {
 		fmt.Fprintf(originalOutput, "  -complex                Сложный режим (все типы символов, длина 20)\n")
 		fmt.Fprintf(originalOutput, "  -o                      Сохранить пароли в файл\n")
 		fmt.Fprintf(originalOutput, "  -show-strength          Показать оценку силы пароля\n")
+		fmt.Fprintf(originalOutput, "  -custom-chars           Кастомный набор символов для пароля\n")
 
 		fmt.Fprintf(originalOutput, "\nПримеры:\n")
 		fmt.Fprintf(originalOutput, "  %s -l 16                    # Генерация пароля длиной 16 символов\n", progName)
@@ -317,6 +330,7 @@ func main() {
 		fmt.Fprintf(originalOutput, "  %s -s -l 10                 # Простой пароль\n", progName)
 		fmt.Fprintf(originalOutput, "  %s -complex                 # Максимально сложный пароль\n", progName)
 		fmt.Fprintf(originalOutput, "  %s -l 16 -c 3 -o passwords.txt # Сохранить 3 пароля в файл\n", progName)
+		fmt.Fprintf(originalOutput, "  %s -l 10 -custom-chars \"abc123!@#\" # Пароль из заданных символов\n", progName)
 	}
 
 	flag.Usage = func() {
@@ -338,6 +352,7 @@ func main() {
 		UseDigits:        !*noDigits,
 		UseSpecial:       !*noSpecial,
 		ExcludeAmbiguous: *excludeAmbiguous,
+		CustomChars:      *customChars,
 	}
 
 	if *simple {
