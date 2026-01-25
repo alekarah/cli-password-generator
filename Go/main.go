@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -255,6 +257,144 @@ func checkPasswordStrength(password string) PasswordStrength {
 	}
 }
 
+// askYesNo спрашивает у пользователя да/нет
+func askYesNo(reader *bufio.Reader, prompt string, defaultVal bool) bool {
+	defaultHint := "[Д/н]"
+	if !defaultVal {
+		defaultHint = "[д/Н]"
+	}
+
+	for {
+		fmt.Printf("%s %s: ", prompt, defaultHint)
+		answer, _ := reader.ReadString('\n')
+		answer = strings.TrimSpace(strings.ToLower(answer))
+
+		if answer == "" {
+			return defaultVal
+		}
+		if answer == "д" || answer == "да" || answer == "y" || answer == "yes" {
+			return true
+		}
+		if answer == "н" || answer == "нет" || answer == "n" || answer == "no" {
+			return false
+		}
+		fmt.Println("Пожалуйста, введите 'д' (да) или 'н' (нет)")
+	}
+}
+
+// askInt спрашивает у пользователя число
+func askInt(reader *bufio.Reader, prompt string, defaultVal, minVal, maxVal int) int {
+	for {
+		fmt.Printf("%s [%d]: ", prompt, defaultVal)
+		answer, _ := reader.ReadString('\n')
+		answer = strings.TrimSpace(answer)
+
+		if answer == "" {
+			return defaultVal
+		}
+
+		value, err := strconv.Atoi(answer)
+		if err != nil {
+			fmt.Println("Пожалуйста, введите число")
+			continue
+		}
+		if value < minVal || value > maxVal {
+			fmt.Printf("Введите число от %d до %d\n", minVal, maxVal)
+			continue
+		}
+		return value
+	}
+}
+
+// interactiveMode запускает интерактивный режим
+func interactiveMode() {
+	fmt.Println()
+	fmt.Println("==================================================")
+	fmt.Println("  Генератор паролей - Интерактивный режим")
+	fmt.Println("==================================================")
+	fmt.Println()
+
+	reader := bufio.NewReader(os.Stdin)
+	generator := NewPasswordGenerator()
+
+	// Спрашиваем параметры
+	length := askInt(reader, "Длина пароля", 12, 4, 128)
+	count := askInt(reader, "Количество паролей", 1, 1, 100)
+
+	fmt.Println()
+	useUppercase := askYesNo(reader, "Использовать заглавные буквы?", true)
+	useDigits := askYesNo(reader, "Использовать цифры?", true)
+	useSpecial := askYesNo(reader, "Использовать спецсимволы (!@#$...)?", true)
+	excludeAmbiguous := askYesNo(reader, "Исключить похожие символы (0, O, l, 1, I)?", false)
+
+	fmt.Println()
+	showStrength := askYesNo(reader, "Показать оценку силы пароля?", false)
+	saveFile := askYesNo(reader, "Сохранить в файл?", false)
+
+	var filename string
+	if saveFile {
+		fmt.Print("Имя файла [passwords.txt]: ")
+		filename, _ = reader.ReadString('\n')
+		filename = strings.TrimSpace(filename)
+		if filename == "" {
+			filename = "passwords.txt"
+		}
+	}
+
+	// Генерируем пароли
+	fmt.Println()
+	fmt.Println("--------------------------------------------------")
+	fmt.Println("Генерация...")
+	fmt.Println("--------------------------------------------------")
+	fmt.Println()
+
+	opts := GenerateOptions{
+		Length:           length,
+		UseUppercase:     useUppercase,
+		UseDigits:        useDigits,
+		UseSpecial:       useSpecial,
+		ExcludeAmbiguous: excludeAmbiguous,
+	}
+
+	passwords, err := generator.GenerateMultiple(count, opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Выводим результат
+	if count == 1 {
+		fmt.Printf("Пароль: %s\n", passwords[0])
+		if showStrength {
+			strength := checkPasswordStrength(passwords[0])
+			fmt.Printf("\nСила пароля: %s\n", strength.Level)
+			fmt.Printf("Детали: %s\n", strength.Details)
+		}
+	} else {
+		fmt.Printf("Сгенерировано %d %s:\n\n", count, pluralizePassword(count))
+		for i, pwd := range passwords {
+			if showStrength {
+				strength := checkPasswordStrength(pwd)
+				fmt.Printf("%2d. %s  [%s]\n", i+1, pwd, strength.Level)
+			} else {
+				fmt.Printf("%2d. %s\n", i+1, pwd)
+			}
+		}
+	}
+
+	// Сохраняем в файл
+	if filename != "" {
+		fmt.Println()
+		if err := saveToFile(passwords, filename, length, count); err != nil {
+			fmt.Fprintf(os.Stderr, "Ошибка при сохранении в файл: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Пароли сохранены в файл: %s\n", filename)
+	}
+
+	fmt.Println()
+}
+
 // saveToFile сохраняет пароли в файл
 func saveToFile(passwords []string, filename string, length, count int) error {
 	file, err := os.Create(filename)
@@ -285,6 +425,7 @@ func saveToFile(passwords []string, filename string, length, count int) error {
 func main() {
 	// Определяем флаги командной строки (порядок как в Python версии)
 	help := flag.Bool("h", false, "")
+	interactive := flag.Bool("i", false, "")
 	length := flag.Int("l", 12, "")
 	count := flag.Int("c", 1, "")
 	noUppercase := flag.Bool("no-uppercase", false, "")
@@ -310,6 +451,7 @@ func main() {
 
 		// Кастомный вывод опций в нужном порядке и формате
 		fmt.Fprintf(originalOutput, "  -h                      Показать справку\n")
+		fmt.Fprintf(originalOutput, "  -i                      Интерактивный режим\n")
 		fmt.Fprintf(originalOutput, "  -l                      Длина пароля (по умолчанию: 12)\n")
 		fmt.Fprintf(originalOutput, "  -c                      Количество генерируемых паролей (по умолчанию: 1)\n")
 		fmt.Fprintf(originalOutput, "  -no-uppercase           Не использовать заглавные буквы\n")
@@ -331,6 +473,7 @@ func main() {
 		fmt.Fprintf(originalOutput, "  %s -complex                 # Максимально сложный пароль\n", progName)
 		fmt.Fprintf(originalOutput, "  %s -l 16 -c 3 -o passwords.txt # Сохранить 3 пароля в файл\n", progName)
 		fmt.Fprintf(originalOutput, "  %s -l 10 -custom-chars \"abc123!@#\" # Пароль из заданных символов\n", progName)
+		fmt.Fprintf(originalOutput, "  %s -i                       # Интерактивный режим\n", progName)
 	}
 
 	flag.Usage = func() {
@@ -343,6 +486,11 @@ func main() {
 	if *help {
 		printFullHelp()
 		os.Exit(0)
+	}
+
+	if *interactive {
+		interactiveMode()
+		return
 	}
 
 	// Применяем предустановленные режимы

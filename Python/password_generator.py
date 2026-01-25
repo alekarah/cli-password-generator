@@ -248,6 +248,126 @@ def save_to_file(passwords, filename, length, count):
         print(f"Ошибка при сохранении в файл: {e}", file=sys.stderr)
 
 
+def ask_yes_no(prompt, default=True):
+    """
+    Спрашивает у пользователя да/нет
+
+    Args:
+        prompt (str): Вопрос для пользователя
+        default (bool): Значение по умолчанию
+
+    Returns:
+        bool: True или False
+    """
+    default_hint = "[Д/н]" if default else "[д/Н]"
+    while True:
+        answer = input(f"{prompt} {default_hint}: ").strip().lower()
+        if answer == "":
+            return default
+        if answer in ("д", "да", "y", "yes"):
+            return True
+        if answer in ("н", "нет", "n", "no"):
+            return False
+        print("Пожалуйста, введите 'д' (да) или 'н' (нет)")
+
+
+def ask_int(prompt, default, min_val=1, max_val=1000):
+    """
+    Спрашивает у пользователя число
+
+    Args:
+        prompt (str): Вопрос для пользователя
+        default (int): Значение по умолчанию
+        min_val (int): Минимальное значение
+        max_val (int): Максимальное значение
+
+    Returns:
+        int: Введённое число
+    """
+    while True:
+        answer = input(f"{prompt} [{default}]: ").strip()
+        if answer == "":
+            return default
+        try:
+            value = int(answer)
+            if min_val <= value <= max_val:
+                return value
+            print(f"Введите число от {min_val} до {max_val}")
+        except ValueError:
+            print("Пожалуйста, введите число")
+
+
+def interactive_mode():
+    """Интерактивный режим генерации паролей"""
+    print("\n" + "="*50)
+    print("  Генератор паролей - Интерактивный режим")
+    print("="*50 + "\n")
+
+    generator = PasswordGenerator()
+
+    # Спрашиваем параметры
+    length = ask_int("Длина пароля", default=12, min_val=4, max_val=128)
+    count = ask_int("Количество паролей", default=1, min_val=1, max_val=100)
+
+    print()
+    use_uppercase = ask_yes_no("Использовать заглавные буквы?", default=True)
+    use_digits = ask_yes_no("Использовать цифры?", default=True)
+    use_special = ask_yes_no("Использовать спецсимволы (!@#$...)?", default=True)
+    exclude_ambiguous = ask_yes_no("Исключить похожие символы (0, O, l, 1, I)?", default=False)
+
+    print()
+    show_strength = ask_yes_no("Показать оценку силы пароля?", default=False)
+    save_file = ask_yes_no("Сохранить в файл?", default=False)
+
+    filename = None
+    if save_file:
+        filename = input("Имя файла [passwords.txt]: ").strip()
+        if not filename:
+            filename = "passwords.txt"
+
+    # Генерируем пароли
+    print("\n" + "-"*50)
+    print("Генерация...")
+    print("-"*50 + "\n")
+
+    try:
+        passwords = generator.generate_multiple(
+            count=count,
+            length=length,
+            use_uppercase=use_uppercase,
+            use_digits=use_digits,
+            use_special=use_special,
+            exclude_ambiguous=exclude_ambiguous
+        )
+
+        # Выводим результат
+        if count == 1:
+            print(f"Пароль: {passwords[0]}")
+            if show_strength:
+                score, level, details = check_password_strength(passwords[0])
+                print(f"\nСила пароля: {level}")
+                print(f"Детали: {details}")
+        else:
+            print(f"Сгенерировано {count} {pluralize_password(count)}:\n")
+            for i, pwd in enumerate(passwords, 1):
+                if show_strength:
+                    score, level, details = check_password_strength(pwd)
+                    print(f"{i:2d}. {pwd}  [{level}]")
+                else:
+                    print(f"{i:2d}. {pwd}")
+
+        # Сохраняем в файл
+        if filename:
+            print()
+            save_to_file(passwords, filename, length, count)
+
+        print()
+
+    except ValueError as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     """Главная функция CLI"""
     parser = CustomArgumentParser(
@@ -265,11 +385,15 @@ def main():
   %(prog)s --complex                 # Максимально сложный пароль
   %(prog)s -l 16 -c 3 -o passwords.txt # Сохранить 3 пароля в файл
   %(prog)s -l 10 --custom-chars "abc123!@#" # Пароль из заданных символов
+  %(prog)s -i                        # Интерактивный режим
         """
     )
 
     parser.add_argument('-h', '--help', action='help',
                         help='Показать справку')
+
+    parser.add_argument('-i', '--interactive', action='store_true',
+                        help='Интерактивный режим')
 
     parser.add_argument('-l', '--length', type=int, default=12,
                         help='Длина пароля (по умолчанию: 12)')
@@ -305,6 +429,11 @@ def main():
                         help='Кастомный набор символов для пароля (например: "abc123!@#")')
 
     args = parser.parse_args()
+
+    # Интерактивный режим
+    if args.interactive:
+        interactive_mode()
+        return
 
     try:
         generator = PasswordGenerator()
