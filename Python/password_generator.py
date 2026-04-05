@@ -230,6 +230,13 @@ class PasswordGenerator:
             if exclude_ambiguous:
                 ambiguous = "0Ol1I"
                 charset = ''.join(c for c in charset if c not in ambiguous)
+                required_chars = [random.choice(charset)]
+                if use_uppercase:
+                    required_chars.append(random.choice(''.join(c for c in self.uppercase if c not in ambiguous)))
+                if use_digits:
+                    required_chars.append(random.choice(''.join(c for c in self.digits if c not in ambiguous)))
+                if use_special:
+                    required_chars.append(random.choice(self.special))
 
         if not charset:
             raise ValueError("Должен быть выбран хотя бы один тип символов")

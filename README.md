@@ -96,6 +96,20 @@ python password_generator.py -d
 
 Полный список параметров см. в документации версий.
 
+## 🧪 Тесты
+
+Обе реализации покрыты юнит-тестами. Запуск:
+
+```bash
+# Python
+cd Python && pytest test_password_generator.py -v
+
+# Go
+cd Go && go test ./...
+```
+
+Подробнее — в документации [Python](Python/README.md#тесты) и [Go](Go/README.md#тесты) версий.
+
 ## 🔍 Сравнение реализаций
 
 | Характеристика | Python | Go |
@@ -119,6 +133,8 @@ python password_generator.py -d
 - [x] Кастомные наборы символов
 - [x] Интерактивный режим
 - [x] Генерация запоминающихся паролей (diceware)
+- [x] Юнит-тесты (Python `pytest`, Go `testing`)
+- [ ] Расширить тесты: edge cases, property-based тесты
 - [ ] Веб-версия с API
 - [ ] Rust реализация
 

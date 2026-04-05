@@ -232,6 +232,48 @@ $ python password_generator.py -d -c 3
 - Легко запоминается и набирается
 - Идеален для мастер-паролей
 
+## Тесты
+
+Тесты находятся в файле `test_password_generator.py` и используют `pytest`.
+
+### Установка и запуск
+
+Создай и активируй виртуальное окружение, затем установи pytest:
+
+```bash
+python -m venv venv
+pip install pytest
+```
+
+Активация окружения зависит от терминала:
+
+```bash
+# Git Bash
+source venv/Scripts/activate
+
+# CMD
+venv\Scripts\activate.bat
+
+# PowerShell
+venv\Scripts\Activate.ps1
+```
+
+После активации в терминале появится `(venv)`. Запуск тестов:
+
+```bash
+pytest test_password_generator.py -v
+```
+
+### Покрытие
+
+| Класс / функция | Что проверяется |
+|---|---|
+| `PasswordGenerator.generate()` | Длина пароля, флаги типов символов (`--no-uppercase`, `--no-digits`, `--no-special`), гарантия наличия каждого включённого типа, исключение ambiguous символов, custom charset, ошибки при невалидных аргументах |
+| `PasswordGenerator.generate_multiple()` | Количество паролей, длина каждого |
+| `PasswordGenerator.generate_diceware()` | Количество слов, кастомный разделитель, капитализация, добавление числа, ошибки при `words < 3` и `words > 10` |
+| `check_password_strength()` | Слабый пароль → `"Слабый"`, сильный → `"Сильный"/"Очень сильный"`, структура возврата `(score, level, details)`, рост score с длиной |
+| `pluralize_password()` | Склонение: 1 → пароль, 2 → пароля, 5/11 → паролей, 21 → пароль |
+
 ## Безопасность
 
 - Использует модуль `random` для генерации символов

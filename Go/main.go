@@ -246,6 +246,19 @@ func (pg *PasswordGenerator) Generate(opts GenerateOptions) (string, error) {
 		if opts.ExcludeAmbiguous {
 			ambiguous := "0Ol1I"
 			charset = removeChars(charset, ambiguous)
+			cleanLower := removeChars(lowercase, ambiguous)
+			requiredChars = []rune{rune(cleanLower[pg.rng.Intn(len(cleanLower))])}
+			if opts.UseUppercase {
+				cleanUpper := removeChars(uppercase, ambiguous)
+				requiredChars = append(requiredChars, rune(cleanUpper[pg.rng.Intn(len(cleanUpper))]))
+			}
+			if opts.UseDigits {
+				cleanDigits := removeChars(digits, ambiguous)
+				requiredChars = append(requiredChars, rune(cleanDigits[pg.rng.Intn(len(cleanDigits))]))
+			}
+			if opts.UseSpecial {
+				requiredChars = append(requiredChars, rune(special[pg.rng.Intn(len(special))]))
+			}
 		}
 	}
 
